@@ -41,13 +41,13 @@ panic: brk #1
 init_stdin_stdout:
     ; begin init_stdin_stdout
     ; saved registers:
-    ;     x19
-    ;     x20
+    ;     x27
+    ;     x28
     ;     lr
     ;     fp
     ; allocate 32 bytes
     sub sp, sp, #32
-    stp x20, x19, [sp, #16]
+    stp x28, x27, [sp, #16]
     stp fp, lr, [sp]
     ; save new frame pointer
     mov fp, sp
@@ -57,9 +57,9 @@ init_stdin_stdout:
     ; mode = &w_str
     adrp x1, w_str@PAGE
     add x1, x1, w_str@PAGEOFF
-    ; x19 = fdopen(STDOUT_FILENO, "w")
+    ; x28 = fdopen(STDOUT_FILENO, "w")
     bl _fdopen
-    mov x19, x0
+    mov x28, x0
 
     ; fd = STDIN_FILENO
     mov x0, #0
@@ -69,11 +69,11 @@ init_stdin_stdout:
     ; x0 = fdopen(STDIN_FILENO, "r")
     bl _fdopen
 
-    ; x1 = x19
-    mov x1, x19
+    ; x1 = x28
+    mov x1, x28
 
     ; end init_stdin_stdout
-    ldp x20, x19, [sp, #16]
+    ldp x28, x27, [sp, #16]
     ldp fp, lr, [sp]
     add sp, sp, #32
 
@@ -85,8 +85,8 @@ init_stdin_stdout:
 calorie_group_sum:
     ; begin calorie_group_sum
     ; saved registers:
-    ;     x19
-    ;     x20
+    ;     x27
+    ;     x28
     ;     lr
     ;     fp
     ; stack variables:
@@ -94,7 +94,7 @@ calorie_group_sum:
     ;     buf_size : size_t / u64
     ; allocate 48 bytes
     sub sp, sp, #48
-    stp x20, x19, [sp, #32]
+    stp x28, x27, [sp, #32]
     stp fp, lr, [sp, #16]
     ; save new frame pointer
     add fp, sp, #16
@@ -103,9 +103,9 @@ calorie_group_sum:
     ; buf_size @ [sp, #0]
 
     ; back up stdin
-    mov x19, x0
+    mov x28, x0
     ; initialize sum to 0
-    mov x20, xzr
+    mov x27, xzr
 
 .line_loop:
     ; read a line from stdin
@@ -114,7 +114,7 @@ calorie_group_sum:
     ; sizep = &buf_size
     add x1, sp, #0
     ; file = stdin
-    mov x2, x19
+    mov x2, x28
     ; getline(&line_buf, &buf_size, stdin)
     bl _getline
 
@@ -122,7 +122,7 @@ calorie_group_sum:
     cmn x0, #1
     bne .line_loop_body
     ; otherwise, check eof
-    mov x0, x19
+    mov x0, x28
     bl _feof
     ; if it's zero, panic
     cbz x0, panic
@@ -154,7 +154,7 @@ calorie_group_sum:
     bl _strtoull
 
     ; add this to our sum
-    add x20, x20, x0
+    add x27, x27, x0
 
     ; read next line
     b .line_loop
@@ -173,10 +173,10 @@ calorie_group_sum:
     bl _free
 
     ; return the sum
-    mov x0, x20
+    mov x0, x27
 
     ; end calorie_group_sum
-    ldp x20, x19, [sp, #32]
+    ldp x28, x27, [sp, #32]
     ldp fp, lr, [sp, #16]
     add sp, sp, #48
 
@@ -188,46 +188,46 @@ calorie_group_sum:
 calorie_groups_max:
     ; begin calorie_groups_max
     ; saved registers:
-    ;     x19
-    ;     x20
+    ;     x27
+    ;     x28
     ;     lr
     ;     fp
     ; allocate 32 bytes
     sub sp, sp, #32
-    stp x20, x19, [sp, #16]
+    stp x28, x27, [sp, #16]
     stp fp, lr, [sp, #0]
     ; save new frame pointer
     mov fp, sp
 
     ; back up stdin
-    mov x19, x0
+    mov x28, x0
     ; initialize maximum to 0
-    mov x20, #0
+    mov x27, #0
 
 .group_loop:
     ; check eof
-    mov x0, x19
+    mov x0, x28
     bl _feof
     ; if nonzero, return maximum
     cbnz x0, .group_loop_done
     ; otherwise, get the next group's sum
-    mov x0, x19
+    mov x0, x28
     bl calorie_group_sum
 
     ; compare the new sum with our current maximum
-    cmp x0, x20
+    cmp x0, x27
     ; select whichever is bigger
-    csel x20, x0, x20, hs
+    csel x27, x0, x27, hs
 
     ; do next group
     b .group_loop
 
 .group_loop_done:
     ; return max
-    mov x0, x20
+    mov x0, x27
 
     ; end calorie_groups_max
-    ldp x20, x19, [sp, #16]
+    ldp x28, x27, [sp, #16]
     ldp fp, lr, [sp, #0]
     add sp, sp, #32
 
@@ -236,36 +236,36 @@ calorie_groups_max:
 _main:
     ; begin main
     ; saved registers:
-    ;     x19
-    ;     x20
+    ;     x27
+    ;     x28
     ;     lr
     ;     fp
     ; allocate 32 bytes
     sub sp, sp, #32
-    stp x20, x19, [sp, #16]
+    stp x28, x27, [sp, #16]
     stp fp, lr, [sp, #0]
     ; save new frame pointer
     mov fp, sp
 
     ; x0 = stdin, x1 = stdout
     bl init_stdin_stdout
-    ; x19 = stdin, x20 = stdout
-    mov x19, x0
-    mov x20, x1
+    ; x28 = stdin, x27 = stdout
+    mov x28, x0
+    mov x27, x1
 
     ; fprintf args.len = 1, 16-byte aligned
     sub sp, sp, #16
 
     ; get a sum
     ; x0 = stdin
-    mov x0, x19
+    mov x0, x28
     bl calorie_groups_max
 
     ; fprintf args[0] = x0
     str x0, [sp]
 
     ; file = stdout
-    mov x0, x20
+    mov x0, x27
     ; fmt = "%zu\n"
     adrp x1, out_fmt_str@PAGE
     add x1, x1, out_fmt_str@PAGEOFF
@@ -279,7 +279,7 @@ _main:
     mov x0, #0
 
     ; end main
-    ldp x20, x19, [sp, #16]
+    ldp x28, x27, [sp, #16]
     ldp fp, lr, [sp, #0]
     add sp, sp, #32
 
